@@ -2,6 +2,7 @@
 src = "contracts"
 out = "out"
 dot_env = ".env"
+dependencies = ["snekmate==0.1.1rc1"]
 
 [networks.pyevm]
 is_zksync = false
