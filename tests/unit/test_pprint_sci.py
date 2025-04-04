@@ -74,3 +74,6 @@ def test_add_pprint_struct(pprint_contract, account_sender):
     assert pprint.abstract == expected_abstract
     assert pprint.ipfs_hash == expected_ipfs_hash
     assert pprint.download_date == expected_download_date
+
+
+# @todo add test case for reverting
