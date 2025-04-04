@@ -6,6 +6,9 @@ from moccasin.moccasin_account import MoccasinAccount
 from script.deploy import deploy_pprint
 
 
+################################################################
+#                             UNIT                             #
+################################################################
 @pytest.fixture(scope="function")
 def account_sender() -> MoccasinAccount:
     """Get deployer entity from default network."""

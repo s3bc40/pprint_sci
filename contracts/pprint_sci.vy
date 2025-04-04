@@ -25,8 +25,11 @@ exports: ownable.owner
 ################################################################
 #                          CONSTANTS                           #
 ################################################################
-MAX_PPRINTS_PER_OWNER: constant(uint256) = 300
-MAX_AUTHORS_PER_PPRINT: constant(uint256) = 10
+MAX_TITLE_LENGTH: public(constant(uint256)) = 100
+MAX_AUTHORS_PER_PPRINT: public(constant(uint256)) = 20
+# @todo Check max author names length?
+MAX_ABSTRACT_LENGTH: public(constant(uint256)) = 2000
+MAX_IPFS_HASH_LENGTH: public(constant(uint256)) = 46
 
 
 ################################################################
@@ -46,11 +49,20 @@ id_to_pprint: HashMap[uint256, Preprint]
 struct Preprint:
     id: uint256
     owner: address
-    title: String[100]
+    title: String[MAX_TITLE_LENGTH]
     authors: DynArray[String[100], MAX_AUTHORS_PER_PPRINT]
-    abstract: String[1000]
-    ipfs_hash: String[100]
-    publication_date: uint256
+    abstract: String[MAX_ABSTRACT_LENGTH]
+    ipfs_hash: String[MAX_IPFS_HASH_LENGTH]
+    download_date: uint256
+
+
+################################################################
+#                            EVENTS                            #
+################################################################
+event PreprintAdded:
+    id: indexed(uint256)
+    owner: indexed(address)
+    pub_date: uint256
 
 
 ################################################################
@@ -59,6 +71,19 @@ struct Preprint:
 INDEX_OUT_OF_BOUNDS: public(
     constant(String[40])
 ) = "pprint_sci: Index out of bounds"
+TITLE_TOO_LONG: public(
+    constant(String[40])
+) = "pprint_sci: Title too long"
+TOO_MANY_AUTHORS: public(
+    constant(String[40])
+) = "pprint_sci: Too many authors"
+ABSTRACT_TOO_LONG: public(
+    constant(String[40])
+) = "pprint_sci: Abstract too long"
+IPFS_HASH_TOO_LONG: public(
+    constant(String[40])
+) = "pprint_sci: IPFS hash too long"
+# @todo Check for IPFS hash format -> lib for vyper? Rust crate CID
 
 
 ################################################################
@@ -69,6 +94,46 @@ def __init__():
     ownable.__init__()
     self.pprint_count = 0
 
+
+################################################################
+#                      EXTERNAL FUNCTIONS                      #
+################################################################
+@external
+def add_pprint(_title: String[MAX_TITLE_LENGTH], _authors: DynArray[String[100], MAX_AUTHORS_PER_PPRINT], _abstract: String[MAX_ABSTRACT_LENGTH], _ipfs_hash: String[MAX_IPFS_HASH_LENGTH]):
+    """
+    @dev Adds a new preprint to the contract.
+    @param _title The title of the preprint.
+    @param _authors The authors of the preprint.
+    @param _abstract The abstract of the preprint.
+    @param _ipfs_hash The IPFS hash of the preprint document.
+    """
+    # Check
+    assert len(_title) <= MAX_TITLE_LENGTH, TITLE_TOO_LONG
+    assert len(_authors) <= MAX_AUTHORS_PER_PPRINT, TOO_MANY_AUTHORS
+    assert len(_abstract) <= MAX_ABSTRACT_LENGTH, ABSTRACT_TOO_LONG
+    assert len(_ipfs_hash) <= MAX_IPFS_HASH_LENGTH, IPFS_HASH_TOO_LONG
+
+    # Effect
+    new_pprint: Preprint = Preprint(
+        id=self.pprint_count,
+        owner=msg.sender,
+        title=_title,
+        authors=_authors,
+        abstract=_abstract,
+        ipfs_hash=_ipfs_hash,
+        download_date=block.timestamp
+    )
+    # Store the new preprint in the mapping
+    self.id_to_pprint[self.pprint_count] = new_pprint
+    self.pprint_count += 1
+
+    # Interact
+    log PreprintAdded(
+        id=new_pprint.id,
+        owner=new_pprint.owner,
+        pub_date=new_pprint.download_date
+    )
+    
 
 ################################################################
 #                   EXTERNAL VIEW FUNCTIONS                    #
@@ -87,7 +152,7 @@ def get_pprint_by_id(_id: uint256) -> Preprint:
 
 @view
 @external
-def get_owned_preprints_count() -> uint256:
+def get_preprints_count() -> uint256:
     """
     @dev Returns the number of preprints in the contract.
     @return The number of preprints in the contract.
